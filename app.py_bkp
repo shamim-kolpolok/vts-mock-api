@@ -1,0 +1,164 @@
+
+from flask import Flask, jsonify, request
+from faker import Faker
+from random import choice, uniform, randint
+import time
+from threading import Thread
+from datetime import datetime, timezone, timedelta
+from math import radians, sin, cos, sqrt, atan2
+
+app = Flask(__name__)
+fake = Faker()
+
+# Configuration
+EMI_LIST = ["EMI1", "EMI2", "EMI3", "EMI4", "EMI5"]
+UPDATE_INTERVAL = 5  # seconds
+TRIP_HISTORY_LIMIT = 100  # Max stored points per vehicle
+DATA_RETENTION = 600  # seconds (10 minutes)
+
+# Data storage structure
+telematics_data = {
+    emi: {
+        'history': [],
+        'latest': None,
+        'trip_start': datetime.now(timezone.utc)
+    } for emi in EMI_LIST
+}
+
+def haversine(lat1, lon1, lat2, lon2):
+    """Calculate distance between two points in kilometers"""
+    R = 6371.0  # Earth radius in km
+
+    lat1 = radians(lat1)
+    lon1 = radians(lon1)
+    lat2 = radians(lat2)
+    lon2 = radians(lon2)
+
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+
+    a = sin(dlat / 2)**2 + cos(lat1) * cos(lat2) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+    return R * c
+
+def generate_telematics_data():
+    """Generate random telematics data"""
+    data = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "coordinates": {
+            "latitude": float(fake.latitude()),
+            "longitude": float(fake.longitude())
+        },
+        "speed": randint(0, 120),
+        "fuel_level": round(uniform(0, 100), 1),
+        "emi": choice(EMI_LIST)
+    }
+    return data
+
+def data_generator():
+    """Background data generator"""
+    while True:
+        data = generate_telematics_data()
+        emi = data['emi']
+        
+        # Update vehicle data
+        telematics_data[emi]['latest'] = data
+        telematics_data[emi]['history'].append(data)
+        
+        # Maintain history limit
+        if len(telematics_data[emi]['history']) > TRIP_HISTORY_LIMIT:
+            telematics_data[emi]['history'].pop(0)
+        
+        time.sleep(UPDATE_INTERVAL)
+
+def data_cleanup():
+    """Periodically clear old data to simulate trips"""
+    while True:
+        time.sleep(DATA_RETENTION)
+        now = datetime.now(timezone.utc)
+        for emi in EMI_LIST:
+            if now - telematics_data[emi]['trip_start'] > timedelta(seconds=DATA_RETENTION):
+                telematics_data[emi]['history'] = []
+                telematics_data[emi]['trip_start'] = now
+
+# ========== API Endpoints ==========
+
+@app.route('/api/live/<emi>', methods=['GET'])
+def get_live_position(emi):
+    """Get latest position for a specific EMI"""
+    if emi not in telematics_data:
+        return jsonify({"error": "EMI not found"}), 404
+    
+    latest = telematics_data[emi]['latest']
+    if not latest:
+        return jsonify({"message": "No data available"}), 404
+    
+    return jsonify({
+        "emi": emi,
+        "position": latest['coordinates'],
+        "timestamp": latest['timestamp'],
+        "speed": latest['speed']
+    })
+
+@app.route('/api/nearby/<emi>', methods=['GET'])
+def get_nearby_vehicles(emi):
+    """Find vehicles within radius of specified EMI"""
+    radius = request.args.get('radius', default=5, type=float)  # in kilometers
+    
+    if emi not in telematics_data or not telematics_data[emi]['latest']:
+        return jsonify({"error": "EMI not found or no data"}), 404
+    
+    source = telematics_data[emi]['latest']['coordinates']
+    nearby = []
+    
+    for vehicle in EMI_LIST:
+        if vehicle == emi or not telematics_data[vehicle]['latest']:
+            continue
+            
+        target = telematics_data[vehicle]['latest']['coordinates']
+        distance = haversine(
+            source['latitude'], source['longitude'],
+            target['latitude'], target['longitude']
+        )
+        
+        if distance <= radius:
+            nearby.append({
+                "emi": vehicle,
+                "distance": round(distance, 2),
+                "position": target,
+                "timestamp": telematics_data[vehicle]['latest']['timestamp']
+            })
+    
+    return jsonify({
+        "radius": radius,
+        "center": source,
+        "nearby_vehicles": nearby
+    })
+
+@app.route('/api/history/<emi>', methods=['GET'])
+def get_trip_history(emi):
+    """Get trip history for a specific EMI"""
+    if emi not in telematics_data:
+        return jsonify({"error": "EMI not found"}), 404
+    
+    limit = request.args.get('limit', default=10, type=int)
+    history = telematics_data[emi]['history'][-limit:]
+    
+    return jsonify({
+        "emi": emi,
+        "trip_start": telematics_data[emi]['trip_start'].isoformat(),
+        "positions": [{
+            "timestamp": entry['timestamp'],
+            "coordinates": entry['coordinates'],
+            "speed": entry['speed']
+        } for entry in history]
+    })
+
+if __name__ == '__main__':
+    # Start background services
+    Thread(target=data_generator).start()
+    Thread(target=data_cleanup).start()
+    
+    # Start Flask app
+    app.run(host='0.0.0.0', port=5001, debug=True)
