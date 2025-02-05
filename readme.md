@@ -1,115 +1,115 @@
 # VTS Mock API
 
-This is a mock API for a Vehicle Tracking System (VTS) that generates random telematics data for multiple drivers. It provides real-time vehicle positions, trip history, and nearby vehicle information.
+This project is a mock Vehicle Tracking System (VTS) API that generates random vehicle location and telematics data.
 
-## Features
-- Generates random latitude/longitude within Dhaka, Bangladesh.
-- Updates vehicle data every 5 seconds.
-- Provides real-time location, speed, and fuel level.
-- Stores trip history with a limit of 100 records.
-- Cleans up old data after 10 minutes.
-- API endpoints to get live position, trip history, and nearby vehicles.
+## **Installation & Setup**
 
-## Requirements
-- Python 3.7+
-- Virtual environment (optional but recommended)
-- Flask
-- Faker
+### **Prerequisites**
+Ensure you have the following installed on your system:
+- Python 3.10 or later
+- `pip` (Python package manager)
+- `virtualenv` (for creating isolated environments)
 
-## Installation & Setup
-
-### 1. Clone the Repository
+### **Clone the Repository**
 ```sh
-git clone https://github.com/yourusername/vts-mock-api.git
+git clone https://github.com/your-repo/vts-mock-api.git
 cd vts-mock-api
 ```
 
-### 2. Create a Virtual Environment
+### **Set Up a Virtual Environment**
+Run the following command to create and activate a virtual environment:
 ```sh
-python -m venv venv
-source venv/bin/activate  # On macOS/Linux
-venv\Scripts\activate    # On Windows
+python3 -m venv venv
+source venv/bin/activate  # For macOS/Linux
+venv\Scripts\activate    # For Windows (PowerShell)
 ```
 
-### 3. Install Dependencies
+### **Install Dependencies**
+Once inside the virtual environment, install the required packages:
 ```sh
 pip install -r requirements.txt
 ```
 
-### 4. Run the Application
+If you face a `ModuleNotFoundError` for Flask, manually install it:
+```sh
+pip install flask faker
+```
+
+### **Run the Application**
 ```sh
 python app.py
 ```
-By default, it runs on `http://localhost:5001`.
 
-## Accessing the API
+The API will now be running on `http://127.0.0.1:5001`.
 
-### 1. Get Live Position
+## **Available Endpoints**
+
+### **1. Get Live Position of a Driver**
 ```sh
-GET http://localhost:5001/api/live/D_ID_1
+GET /api/live/<driver_id>
 ```
-Response:
+#### **Response**
 ```json
 {
   "driver_id": "D_ID_1",
-  "position": { "latitude": 23.726, "longitude": 90.419 },
+  "position": { "latitude": 23.7256, "longitude": 90.4191 },
   "timestamp": "2025-02-05T12:00:00Z",
-  "speed": 45
+  "speed": 40
 }
 ```
 
-### 2. Get Nearby Vehicles
+### **2. Get Nearby Vehicles**
 ```sh
-GET http://localhost:5001/api/nearby/D_ID_1?radius=5
+GET /api/nearby/<driver_id>?radius=5
 ```
-Response:
+#### **Response**
 ```json
 {
   "radius": 5,
-  "center": { "latitude": 23.726, "longitude": 90.419 },
+  "center": { "latitude": 23.7256, "longitude": 90.4191 },
   "nearby_vehicles": [
     {
-      "driver_id": "D_ID_2",
+      "driver_id": "D_ID_3",
       "distance": 3.2,
-      "position": { "latitude": 23.728, "longitude": 90.422 },
+      "position": { "latitude": 23.7270, "longitude": 90.4200 },
       "timestamp": "2025-02-05T12:00:00Z"
     }
   ]
 }
 ```
 
-### 3. Get Trip History
+### **3. Get Driver's Trip History**
 ```sh
-GET http://localhost:5001/api/history/D_ID_1?limit=10
+GET /api/history/<driver_id>?limit=10
 ```
-Response:
+#### **Response**
 ```json
 {
   "driver_id": "D_ID_1",
-  "trip_start": "2025-02-05T11:50:00Z",
+  "trip_start": "2025-02-05T10:00:00Z",
   "positions": [
-    { "timestamp": "2025-02-05T11:55:00Z", "coordinates": { "latitude": 23.726, "longitude": 90.419 }, "speed": 40 }
+    { "timestamp": "2025-02-05T12:00:00Z", "coordinates": { "latitude": 23.7256, "longitude": 90.4191 }, "speed": 40 }
   ]
 }
 ```
 
-## Sharing on Local Network
-Find your local IP:
+## **Troubleshooting**
+
+### **1. `ModuleNotFoundError: No module named 'flask'`**
+If you see this error, make sure the virtual environment is activated and install Flask:
 ```sh
-ipconfig getifaddr en0  # macOS (Wi-Fi)
-ipconfig getifaddr en1  # macOS (Ethernet)
-```
-Run the app with:
-```sh
-python app.py
-```
-Access it from other devices on the same network:
-```sh
-http://<your-local-ip>:5001/api/live/D_ID_1
+source venv/bin/activate
+pip install flask faker
 ```
 
-## Troubleshooting
-- Ensure your firewall allows incoming connections to Python.
-- Use `netstat -an | grep 5001` to check if the port is open.
-- Run `pip install -r requirements.txt` to install missing dependencies.
+### **2. `source venv/bin/activate: No such file or directory`**
+Ensure you created the virtual environment correctly:
+```sh
+python3 -m venv venv
+source venv/bin/activate
+```
+
+## **License**
+This project is open-source and free to use.
+
 
